@@ -1,6 +1,7 @@
 package com.informaticsuii.sayurdetection;
 
 
+import android.util.Log;
 import android.util.Size;
 
 public class MainActivity extends CameraActivity {
@@ -13,7 +14,7 @@ public class MainActivity extends CameraActivity {
 
     @Override
     protected void onPreviewSizeChosen(Size size, int rotation) {
-
+        Log.d("//DEBUGPROCESS", "onPreviewSizeChoosen Called");
     }
 
     @Override

@@ -15,6 +15,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.util.Log;
 import android.util.Size;
 import android.view.View;
 import android.widget.Button;
@@ -183,7 +184,7 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
 
     @Override
     public void onImageAvailable(ImageReader imageReader) {
-
+        Log.d("//DEBUGPROCESS", "onImageAvailable Called");
     }
 
     protected abstract void processImage();
