@@ -10,6 +10,7 @@ import androidx.fragment.app.FragmentManager;
 import android.Manifest;
 import android.content.DialogInterface;
 import android.content.pm.PackageManager;
+import android.media.Image;
 import android.media.ImageReader;
 import android.os.Build;
 import android.os.Bundle;
@@ -185,6 +186,9 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
     @Override
     public void onImageAvailable(ImageReader imageReader) {
         Log.d("//DEBUGPROCESS", "onImageAvailable Called");
+        final Image image = imageReader.acquireLatestImage();
+        //procces image
+        image.close();
     }
 
     protected abstract void processImage();

@@ -50,11 +50,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * A simple {@link Fragment} subclass.
- * Use the {@link CameraConnectionFragment#newInstance} factory method to
- * create an instance of this fragment.
- */
 public class CameraConnectionFragment extends Fragment {
     private static final int REQUEST_CAMERA_PERMISSION_RESULT = 0;
     private static final int STATE_PREVIEW = 0;
@@ -151,7 +146,7 @@ public class CameraConnectionFragment extends Fragment {
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
                     super.onCaptureCompleted(session, request, result);
 
-                    process(result);
+                    //process(result);
                 }
 
                 ;
@@ -257,9 +252,27 @@ public class CameraConnectionFragment extends Fragment {
         } else {
             textureView.setSurfaceTextureListener(surfaceTextureListener);
         }
-
     }
 
+    @Override
+    public void onPause() {
+        if (previewCaptureSession != null) {
+            previewCaptureSession.close();
+            previewCaptureSession = null;
+        }
+        if (cameraDevice != null) {
+            cameraDevice.close();
+            cameraDevice = null;
+        }
+
+        if (mImageReader != null) {
+            mImageReader.close();
+            mImageReader = null;
+        }
+        super.onPause();
+
+
+    }
 
     private void startBackgroundThread() {
         backgroundHandlerThread = new HandlerThread("Camera");
@@ -336,12 +349,9 @@ public class CameraConnectionFragment extends Fragment {
                 Size largest = Collections.max(
                         Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
                         new CompareSizesByArea());
+
                 imageSize = chooseOptimalSize(map.getOutputSizes(ImageFormat.JPEG),
                         rotatedWidth, rotatedHeight, maxPreviewWidth, maxPreviewHeight, largest);
-                mImageReader = ImageReader.newInstance(imageSize.getWidth(), imageSize.getHeight(),
-                        ImageFormat.JPEG, /*maxImages*/1);
-                mImageReader.setOnImageAvailableListener(
-                        imageListener, backgroundHandler);
 
 
                 previewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class),
@@ -401,10 +411,17 @@ public class CameraConnectionFragment extends Fragment {
         // This is the output Surface we need to start preview.
         Surface previewSurface = new Surface(surfaceTexture);
 
+
         try {
             // We set up a CaptureRequest.Builder with the output Surface.
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             captureRequestBuilder.addTarget(previewSurface);
+
+            mImageReader = ImageReader.newInstance(imageSize.getWidth(), imageSize.getHeight(),
+                    ImageFormat.YUV_420_888, /*maxImages*/1);
+            mImageReader.setOnImageAvailableListener(
+                    imageListener, backgroundHandler);
+            captureRequestBuilder.addTarget(mImageReader.getSurface());
 
             // Here, we create a CameraCaptureSession for camera preview.
             cameraDevice.createCaptureSession(Arrays.asList(previewSurface, mImageReader.getSurface()),
@@ -467,21 +484,6 @@ public class CameraConnectionFragment extends Fragment {
             Log.e("Camera2", "Couldn't find any suitable preview size");
             return choices[0];
         }
-
-
-//        List<Size> bigEnough = new ArrayList<Size>();
-//        for (Size option : choices) {
-//            if (option.getHeight() == option.getWidth() * height / width && option.getWidth() >= width
-//                    && option.getHeight() >= height) {
-//                bigEnough.add(option);
-//            }
-//        }
-//        if (bigEnough.size() > 0) {
-//            return Collections.min(bigEnough, new ComparizeSizeByArea());
-//        } else {
-//            return choices[0];
-//
-//        }
     }
 
     private static class CompareSizesByArea implements Comparator<Size> {
