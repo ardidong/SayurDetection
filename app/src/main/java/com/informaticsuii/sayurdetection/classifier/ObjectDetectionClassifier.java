@@ -4,6 +4,8 @@ import android.app.Activity;
 import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
+import android.graphics.RectF;
+import android.os.Trace;
 
 import org.tensorflow.lite.Interpreter;
 import org.tensorflow.lite.support.common.FileUtil;
@@ -16,13 +18,16 @@ import java.io.InputStreamReader;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Vector;
 
 public class ObjectDetectionClassifier implements Classifier {
 
-    //Jumlah Hasil Deteksi
-    private static final int NUM_DETECTTIONS = 10;
+    //Only returns this many results
+    private static final int NUM_DETECTIONS = 10;
     //Float Model
     private static final float IMAGE_MEAN = 128.0f;
     private static final float IMAGE_STD = 128.0f;
@@ -64,7 +69,7 @@ public class ObjectDetectionClassifier implements Classifier {
         InputStream labelsInput = assetManager.open(actualFileName);
         BufferedReader br = new BufferedReader(new InputStreamReader(labelsInput));
         String line;
-        while ((line = br.readLine()) != null){
+        while ((line = br.readLine()) != null) {
             d.labels.add(line);
         }
         br.close();
@@ -81,7 +86,7 @@ public class ObjectDetectionClassifier implements Classifier {
 
         //pre-allocate buffer
         int numBytesPerChannel;
-        if(isModelQuantized){
+        if (isModelQuantized) {
             numBytesPerChannel = 1; //Quantized
         } else {
             numBytesPerChannel = 4; //Floating Point
@@ -91,9 +96,9 @@ public class ObjectDetectionClassifier implements Classifier {
         d.imageData.order(ByteOrder.nativeOrder());
         d.intValues = new int[d.inputSize * d.inputSize];
 
-        d.outputLocations = new float[1][NUM_DETECTTIONS][4];
-        d.outputClasses = new float[1][NUM_DETECTTIONS];
-        d.outputScores = new float[1][NUM_DETECTTIONS];
+        d.outputLocations = new float[1][NUM_DETECTIONS][4];
+        d.outputClasses = new float[1][NUM_DETECTIONS];
+        d.outputScores = new float[1][NUM_DETECTIONS];
         d.numDetections = new float[1];
 
         return d;
@@ -102,7 +107,72 @@ public class ObjectDetectionClassifier implements Classifier {
 
     @Override
     public List<Recognition> recognizeImage(Bitmap bitmap) {
-        return null;
+        Trace.beginSection("recognize image");
+
+        Trace.beginSection("preprocessBitmap");
+        bitmap.getPixels(intValues, 0, bitmap.getWidth(), 0, 0, bitmap.getWidth(), bitmap.getHeight());
+
+        imageData.rewind();
+        for (int i = 0; i < inputSize; ++i) {
+            for (int j = 0; j < inputSize; ++j) {
+                int pixelValue = intValues[i * inputSize + j];
+                if (isModelQuantized) {
+                    // Quantized model
+                    imageData.put((byte) ((pixelValue >> 16) & 0xFF));
+                    imageData.put((byte) ((pixelValue >> 8) & 0xFF));
+                    imageData.put((byte) (pixelValue & 0xFF));
+                } else { // Float model
+                    imageData.putFloat((((pixelValue >> 16) & 0xFF) - IMAGE_MEAN) / IMAGE_STD);
+                    imageData.putFloat((((pixelValue >> 8) & 0xFF) - IMAGE_MEAN) / IMAGE_STD);
+                    imageData.putFloat(((pixelValue & 0xFF) - IMAGE_MEAN) / IMAGE_STD);
+                }
+            }
+        }
+
+        Trace.endSection(); //end prepocessbitmap trace
+
+        // Copy the input data into TensorFlow.
+        Trace.beginSection("feed");
+        outputLocations = new float[1][NUM_DETECTIONS][4];
+        outputClasses = new float[1][NUM_DETECTIONS];
+        outputScores = new float[1][NUM_DETECTIONS];
+        numDetections = new float[1];
+
+        Object[] inputArray = {imageData};
+        Map<Integer, Object> outputMap = new HashMap<>();
+        outputMap.put(0, outputLocations);
+        outputMap.put(1, outputClasses);
+        outputMap.put(2, outputScores);
+        outputMap.put(3, numDetections);
+        Trace.endSection();
+
+        Trace.beginSection("run");
+        interpreter.runForMultipleInputsOutputs(inputArray, outputMap);
+        Trace.endSection();
+
+        int numDetectionsOutput = Math.min(NUM_DETECTIONS, (int) numDetections[0]);
+
+        final ArrayList<Recognition> recognitions = new ArrayList<>(numDetectionsOutput);
+        for (int i = 0; i < numDetectionsOutput; ++i) {
+            final RectF detection = new RectF(
+                    outputLocations[0][i][1] * inputSize,
+                    outputLocations[0][i][0] * inputSize,
+                    outputLocations[0][i][3] * inputSize,
+                    outputLocations[0][i][2] * inputSize);
+            // SSD Mobilenet V1 Model assumes class 0 is background class
+            // in label file and class labels start from 1 to number_of_classes+1,
+            // while outputClasses correspond to class index from 0 to number_of_classes
+            int labelOffset = 1;
+            recognitions.add(
+                    new Recognition(
+                            "" + i,
+                            labels.get((int) outputClasses[0][i] + labelOffset),
+                            outputScores[0][i],
+                            detection));
+
+        }
+        Trace.endSection();
+        return recognitions;
     }
 
     @Override
@@ -112,7 +182,7 @@ public class ObjectDetectionClassifier implements Classifier {
 
     @Override
     public String getStatString() {
-        return null;
+        return "";
     }
 
     @Override
