@@ -33,7 +33,7 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
     private boolean storagePermission = false;
 
     private Button btnCapture;
-
+    private  boolean debug = false;
     private Handler handler;
     private HandlerThread handlerThread;
 
@@ -189,6 +189,10 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
         final Image image = imageReader.acquireLatestImage();
         //procces image
         image.close();
+    }
+
+    public boolean isDebug(){
+        return debug;
     }
 
     protected abstract void processImage();
