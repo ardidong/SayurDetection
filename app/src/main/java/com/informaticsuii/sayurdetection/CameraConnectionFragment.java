@@ -417,8 +417,8 @@ public class CameraConnectionFragment extends Fragment {
             captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_PREVIEW);
             captureRequestBuilder.addTarget(previewSurface);
 
-            mImageReader = ImageReader.newInstance(imageSize.getWidth(), imageSize.getHeight(),
-                    ImageFormat.YUV_420_888, /*maxImages*/1);
+            mImageReader = ImageReader.newInstance(previewSize.getWidth(), previewSize.getHeight(),
+                    ImageFormat.YUV_420_888, /*maxImages*/2);
             mImageReader.setOnImageAvailableListener(
                     imageListener, backgroundHandler);
             captureRequestBuilder.addTarget(mImageReader.getSurface());

@@ -16,11 +16,16 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.os.Trace;
 import android.util.Log;
 import android.util.Size;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
+
+import com.informaticsuii.sayurdetection.env.ImageUtils;
+
+import java.nio.ByteBuffer;
 
 public abstract class CameraActivity extends AppCompatActivity implements ImageReader.OnImageAvailableListener,
         View.OnClickListener {
@@ -31,11 +36,19 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
 
     private boolean cameraPermission = false;
     private boolean storagePermission = false;
+    private boolean debug = false;
+    private boolean isProcessingFrame = false;
 
-    private Button btnCapture;
-    private  boolean debug = false;
+    private byte[][] yuvBytes = new byte[3][];
+    private int[] rgbBytes = null;
+    private int yRowStride;
+
     private Handler handler;
     private HandlerThread handlerThread;
+    private Runnable postInferenceCallback;
+    private Runnable imageConverter;
+
+    private Button btnCapture;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -45,13 +58,97 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
         btnCapture = findViewById(R.id.btn_capture);
         btnCapture.setOnClickListener(this);
 
-        if (hasCameraPersmission() ) {
+        if (hasCameraPersmission()) {
             setFragment();
         } else {
             requestPermission();
         }
+    }
+
+    protected int[] getRgbBytes() {
+        imageConverter.run();
+        return rgbBytes;
+    }
+
+    protected int getLuminanceStride() {
+        return yRowStride;
+    }
+
+    protected byte[] getLuminance() {
+        return yuvBytes[0];
+    }
 
 
+    protected void fillBytes(final Image.Plane[] planes, final byte[][] yuvBytes) {
+        // Because of the variable row stride it's not possible to know in
+        // advance the actual necessary dimensions of the yuv planes.
+        for (int i = 0; i < planes.length; ++i) {
+            final ByteBuffer buffer = planes[i].getBuffer();
+            if (yuvBytes[i] == null) {
+                Log.d("//CameraActivity",
+                        String.format("Initializing buffer %d at size %d", i, buffer.capacity()));
+                yuvBytes[i] = new byte[buffer.capacity()];
+            }
+            buffer.get(yuvBytes[i]);
+        }
+    }
+
+
+    @Override
+    public void onImageAvailable(ImageReader imageReader) {
+        Log.d("//DEBUGPROCESS", "onImageAvailable Called");
+
+        if (previewWidth == 0 || previewHeight == 0) {
+            return;
+        }
+        if (rgbBytes == null) {
+            rgbBytes = new int[previewWidth * previewHeight];
+        }
+
+        final Image image = imageReader.acquireLatestImage();
+        if (image == null) {
+            return;
+        }
+
+        if (isProcessingFrame) {
+            image.close();
+            return;
+        }
+        isProcessingFrame = true;
+
+        Trace.beginSection("imageAvailable");
+        final Image.Plane[] planes = image.getPlanes();
+        fillBytes(planes, yuvBytes);
+        yRowStride = planes[0].getRowStride();
+        final int uvRowStride = planes[1].getRowStride();
+        final int uvPixelStride = planes[1].getPixelStride();
+
+        imageConverter =
+                new Runnable() {
+                    @Override
+                    public void run() {
+                        ImageUtils.convertYUV420ToARGB8888(
+                                yuvBytes[0],
+                                yuvBytes[1],
+                                yuvBytes[2],
+                                previewWidth,
+                                previewHeight,
+                                yRowStride,
+                                uvRowStride,
+                                uvPixelStride,
+                                rgbBytes);
+                    }
+                };
+
+        postInferenceCallback = new Runnable() {
+            @Override
+            public void run() {
+                image.close();
+                isProcessingFrame = false;
+            }
+        };
+        processImage();
+        Trace.endSection();
     }
 
     @Override
@@ -183,17 +280,17 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
         }
     }
 
-    @Override
-    public void onImageAvailable(ImageReader imageReader) {
-        Log.d("//DEBUGPROCESS", "onImageAvailable Called");
-        final Image image = imageReader.acquireLatestImage();
-        //procces image
-        image.close();
-    }
 
-    public boolean isDebug(){
+    public boolean isDebug() {
         return debug;
     }
+
+    protected void readyForNextImage() {
+        if (postInferenceCallback != null) {
+            postInferenceCallback.run();
+        }
+    }
+
 
     protected abstract void processImage();
 

@@ -75,7 +75,7 @@ public class ObjectDetectionClassifier implements Classifier {
         br.close();
 
         Interpreter.Options options = new Interpreter.Options();
-        options.setNumThreads(5);
+        options.setNumThreads(NUM_THREADS);
         options.setUseNNAPI(true);
 
         d.inputSize = inputSize;

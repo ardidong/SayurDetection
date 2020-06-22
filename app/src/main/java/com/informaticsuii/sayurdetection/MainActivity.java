@@ -3,8 +3,13 @@ package com.informaticsuii.sayurdetection;
 
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.Matrix;
+import android.graphics.Paint;
+import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.Typeface;
+import android.os.SystemClock;
 import android.util.Log;
 import android.util.Size;
 import android.util.TypedValue;
@@ -19,6 +24,8 @@ import com.informaticsuii.sayurdetection.env.ImageUtils;
 import com.informaticsuii.sayurdetection.tracker.MultiBoxTracker;
 
 import java.io.IOException;
+import java.util.LinkedList;
+import java.util.List;
 
 public class MainActivity extends CameraActivity {
     private static final Size DESIRED_PREVIEW_SIZE = new Size(640, 480);
@@ -81,13 +88,104 @@ public class MainActivity extends CameraActivity {
             finish();
         }
 
+        previewHeight = size.getHeight();
+        previewWidth = size.getWidth();
+        final int screenOrientation = getWindowManager().getDefaultDisplay().getRotation();
+        sensorOrientation = rotation - screenOrientation;
 
+        Log.i("//DebugMainActivity", String.format("Camera orientation relative to screen canvas: %d", sensorOrientation));
 
+        Log.i("//DebugMainActivity", String.format("Initializing at size %dx%d", previewWidth, previewHeight));
+        rgbFrameBitmap = Bitmap.createBitmap(previewWidth, previewHeight, Bitmap.Config.ARGB_8888);
+        croppedBitmap = Bitmap.createBitmap(cropSize, cropSize, Bitmap.Config.ARGB_8888);
+
+        frameToCropTransform = ImageUtils.getTransformationMatrix(
+                previewWidth, previewHeight,
+                cropSize, cropSize,
+                sensorOrientation, MAINTAIN_ASPECT);
+
+        cropToFrameTransform = new Matrix();
+        frameToCropTransform.invert(cropToFrameTransform);
+
+        trackingOverlay = findViewById(R.id.tracking_overlay);
+        trackingOverlay.addCallback(
+                new OverlayView.DrawCallback() {
+                    @Override
+                    public void drawCallback(Canvas canvas) {
+                        tracker.draw(canvas);
+                        if(isDebug()){
+                            tracker.drawDebug(canvas);
+                        }
+                    }
+                }
+        );
+
+        tracker.setFrameConfiguration(previewWidth, previewHeight, sensorOrientation);
     }
 
     @Override
     protected void processImage() {
+        ++timestamp;
+        final long currTimeStamp = timestamp;
+        trackingOverlay.postInvalidate();
 
+        if(computingDetection){
+            readyForNextImage();
+            return;
+        }
+        computingDetection = true;
+
+        rgbFrameBitmap.setPixels(getRgbBytes(), 0, previewWidth,0,0,previewWidth, previewHeight);
+
+        readyForNextImage();
+
+        final Canvas canvas = new Canvas(croppedBitmap);
+        canvas.drawBitmap(rgbFrameBitmap, frameToCropTransform, null);
+
+        //for examining the actual TF input
+        if(SAVE_PREVIEW_BITMAP){
+            ImageUtils.saveBitmap(croppedBitmap);
+        }
+
+        runInBackground(new Runnable() {
+            @Override
+            public void run() {
+                Log.i("//MainActivity", "Run detection on image" + currTimeStamp);
+                final long startTime = SystemClock.uptimeMillis();
+                final List<Classifier.Recognition> results = classifier.recognizeImage(croppedBitmap);
+                lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime;
+
+                cropCopyBitmap = Bitmap.createBitmap(croppedBitmap);
+                final Canvas canvas = new Canvas(cropCopyBitmap);
+                final Paint paint = new Paint();
+                paint.setColor(Color.RED);
+                paint.setStyle(Paint.Style.STROKE);
+                paint.setStrokeWidth(2.0f);
+
+                float minimumConfidence = MINIMUM_CONFIDENCE_TF_OD_API;
+                switch (MODE){
+                    case TF_OD_API:
+                        minimumConfidence = MINIMUM_CONFIDENCE_TF_OD_API;
+                        break;
+                }
+
+                final List<Classifier.Recognition> mappedRecognitions = new LinkedList<>();
+
+                for (final Classifier.Recognition result : results){
+                    final RectF location = result.getLocation();
+                    if(location != null && result.getConfidence() >= minimumConfidence){
+                        canvas.drawRect(location,paint);
+
+                        cropToFrameTransform.mapRect(location);
+                        result.setLocation(location);
+                        mappedRecognitions.add(result);
+                    }
+                }
+                tracker.trackResults(mappedRecognitions, currTimeStamp);
+                computingDetection = false;
+
+            }
+        });
     }
 
 
