@@ -202,7 +202,7 @@ public class MainActivity extends CameraActivity {
 
     @Override
     protected Size getDesiredPreviewFrameSize() {
-        return new Size(640, 480);
+        return DESIRED_PREVIEW_SIZE;
     }
 
     @Override

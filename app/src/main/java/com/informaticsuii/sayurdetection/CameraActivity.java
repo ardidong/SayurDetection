@@ -55,8 +55,8 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        btnCapture = findViewById(R.id.btn_capture);
-        btnCapture.setOnClickListener(this);
+        // btnCapture = findViewById(R.id.btn_capture);
+        // btnCapture.setOnClickListener(this);
 
         if (hasCameraPersmission()) {
             setFragment();
@@ -209,7 +209,6 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.CAMERA) ==
                     PackageManager.PERMISSION_GRANTED) {
-
                 cameraPermission = true;
                 return true;
             } else {
