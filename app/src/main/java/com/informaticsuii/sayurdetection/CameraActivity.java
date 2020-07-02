@@ -1,6 +1,7 @@
 package com.informaticsuii.sayurdetection;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
@@ -8,8 +9,12 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentManager;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Build;
@@ -25,12 +30,19 @@ import android.widget.Toast;
 
 import com.informaticsuii.sayurdetection.env.ImageUtils;
 
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
+
+import static android.content.Intent.ACTION_PICK;
 
 public abstract class CameraActivity extends AppCompatActivity implements ImageReader.OnImageAvailableListener,
         View.OnClickListener {
     private static final int REQUEST_CAMERA_PERMISSION_RESULT = 0;
     private static final int REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION_RESULT = 1;
+    private static final int IMAGE_INPUT_CODE = 2;
     protected int previewWidth = 0;
     protected int previewHeight = 0;
 
@@ -49,6 +61,7 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
     private Runnable imageConverter;
 
     private Button btnCapture;
+    private Button btnDetectStillImage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -57,6 +70,9 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
 
         // btnCapture = findViewById(R.id.btn_capture);
         // btnCapture.setOnClickListener(this);
+
+        btnDetectStillImage = findViewById(R.id.btn_detect_still_image);
+        btnDetectStillImage.setOnClickListener(this);
 
         if (hasCameraPersmission()) {
             setFragment();
@@ -151,12 +167,6 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
         Trace.endSection();
     }
 
-    @Override
-    public void onClick(View view) {
-
-    }
-
-
     protected void setFragment() {
         Fragment fragment;
         fragment = CameraConnectionFragment.newInstance(
@@ -175,6 +185,57 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
         fragmentManager.beginTransaction().replace(R.id.container, fragment).commit();
 
     }
+
+    protected void detectStillImage() {
+        Intent imageIntent = new Intent();
+        imageIntent.setAction(ACTION_PICK);
+        imageIntent.setType("image/*");
+        startActivityForResult(Intent.createChooser(imageIntent, "Pilih Gambar"), IMAGE_INPUT_CODE);
+    }
+
+    @Override
+    public void onClick(View view) {
+        switch (view.getId()) {
+            case R.id.btn_detect_still_image:
+                detectStillImage();
+                break;
+        }
+    }
+
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == IMAGE_INPUT_CODE) {
+            if (resultCode == RESULT_OK) {
+                InputStream inputStream;
+                try {
+                    if (data != null) {
+                        inputStream = getContentResolver().openInputStream(data.getData());
+                        final Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
+
+                        //Write file
+                        String filename = "bitmap.jpeg";
+                        FileOutputStream stream = this.openFileOutput(filename, Context.MODE_PRIVATE);
+                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream);
+
+                        //Cleanup
+                        stream.close();
+                        bitmap.recycle();
+
+                        Intent detectStillIntent = new Intent(this, DetectFromStillActivity.class);
+                        detectStillIntent.putExtra(DetectFromStillActivity.EXTRA_IMAGE, filename);
+                        startActivityForResult(detectStillIntent, IMAGE_INPUT_CODE);
+
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        }
+    }
+
 
     @Override
     public synchronized void onResume() {
