@@ -56,6 +56,8 @@ public class DetectFromStillActivity extends AppCompatActivity {
     private Uri croppedUri;
     private Classifier classifier;
 
+    MultiBoxTracker tracker;
+
     private ImageView ivStillImage;
 
     @Override
@@ -73,9 +75,9 @@ public class DetectFromStillActivity extends AppCompatActivity {
 
     }
 
-    private void detectImage() {
+    private void prepareDetect() {
+
         try {
-            croppedBitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), croppedUri);
             classifier = ObjectDetectionClassifier.create(
                     this,
                     getAssets(),
@@ -84,52 +86,55 @@ public class DetectFromStillActivity extends AppCompatActivity {
                     TF_OD_API_INPUT_SIZE,
                     TF_OD_API_IS_QUANTIZED);
 
-            if (croppedBitmap != null) {
-                bitmap = getResizedBitmap(croppedBitmap, TF_OD_API_INPUT_SIZE, TF_OD_API_INPUT_SIZE);
-            }
+            croppedBitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), croppedUri);
+            bitmap = getResizedBitmap(croppedBitmap, TF_OD_API_INPUT_SIZE, TF_OD_API_INPUT_SIZE);
+
+            tracker = new MultiBoxTracker(this);
+            tracker.setFrameConfiguration(croppedBitmap.getWidth(), croppedBitmap.getHeight(), 0);
+
+            cropCopyBitmap = croppedBitmap.copy(croppedBitmap.getConfig(), true);
+            int cropSize = TF_OD_API_INPUT_SIZE;
+            frameToCropTransform = ImageUtils.getTransformationMatrix(
+                    croppedBitmap.getWidth(), croppedBitmap.getHeight(),
+                    cropSize, cropSize,
+                    0, false);
+
+            cropToFrameTransform = new Matrix();
+            frameToCropTransform.invert(cropToFrameTransform);
+
         } catch (IOException e) {
             e.printStackTrace();
         }
+
         processImage();
     }
 
-    private void cropImage() {
-        CropImage.activity(imageUri)
-                .setAspectRatio(1, 1)
-                .start(this);
-    }
 
     private void processImage() {
-        final List<Classifier.Recognition> results = classifier.recognizeImage(bitmap);
+        final Canvas canvas = new Canvas(bitmap);
+        canvas.drawBitmap(croppedBitmap, frameToCropTransform, null);
 
-        cropCopyBitmap = croppedBitmap.copy(croppedBitmap.getConfig(), true);
-        Bitmap btm = Bitmap.createBitmap(croppedBitmap.getWidth(), croppedBitmap.getHeight(), croppedBitmap.getConfig());
-        final Canvas canvas = new Canvas(cropCopyBitmap);
+        final List<Classifier.Recognition> results = classifier.recognizeImage(bitmap);
+        final Canvas mCanvas = new Canvas(cropCopyBitmap);
         final Paint paint = new Paint();
         paint.setColor(Color.RED);
         paint.setStyle(Paint.Style.STROKE);
         paint.setStrokeWidth(2.0f);
 
-        float minimumConfidence = MINIMUM_CONFIDENCE_TF_OD_API;
-
         final List<Classifier.Recognition> mappedRecognitions = new LinkedList<>();
 
         for (final Classifier.Recognition result : results) {
             final RectF location = result.getLocation();
-            if (location != null && result.getConfidence() >= minimumConfidence) {
-                //canvas.drawRect(location, paint);
-
-                //cropToFrameTransform.mapRect(location);
+            if (location != null && result.getConfidence() >= MINIMUM_CONFIDENCE_TF_OD_API) {
+                cropToFrameTransform.mapRect(location);
                 result.setLocation(location);
                 mappedRecognitions.add(result);
             }
         }
 
         classifier.close();
-        MultiBoxTracker tracker = new MultiBoxTracker(this);
-        tracker.setFrameConfiguration(croppedBitmap.getWidth(), croppedBitmap.getHeight(), 0);
         tracker.trackResults(mappedRecognitions, 0);
-        tracker.draw(canvas);
+        tracker.draw(mCanvas);
 
         ivStillImage.setImageBitmap(cropCopyBitmap);
     }
@@ -142,9 +147,14 @@ public class DetectFromStillActivity extends AppCompatActivity {
         float scaleHeight = ((float) newHeight) / height;
         Matrix matrix = new Matrix();
         matrix.postScale(scaleWidth, scaleHeight);
-        Bitmap resizedBitmap = Bitmap.createBitmap(
+        return Bitmap.createBitmap(
                 bm, 0, 0, width, height, matrix, false);
-        return resizedBitmap;
+    }
+
+    private void cropImage() {
+        CropImage.activity(imageUri)
+                .setAspectRatio(1, 1)
+                .start(this);
     }
 
     @Override
@@ -167,7 +177,7 @@ public class DetectFromStillActivity extends AppCompatActivity {
             if (resultCode == RESULT_OK) {
                 if (result != null) {
                     croppedUri = result.getUri();
-                    detectImage();
+                    prepareDetect();
                 }
             } else {
                 Toast.makeText(this, "Error cropping image", Toast.LENGTH_SHORT).show();
