@@ -40,9 +40,9 @@ public class MultiBoxTracker {
             Color.parseColor("#AA33AA"),
             Color.parseColor("#0D0068")
     };
-    final List<Pair<Float, RectF>> screenRects = new LinkedList<Pair<Float, RectF>>();
-    private final Queue<Integer> availableColors = new LinkedList<Integer>();
-    private final List<TrackedRecognition> trackedObjects = new LinkedList<TrackedRecognition>();
+    final List<Pair<Float, RectF>> screenRects = new LinkedList<>();
+    private final Queue<Integer> availableColors = new LinkedList<>();
+    private final List<TrackedRecognition> trackedObjects = new LinkedList<>();
     private final Paint boxPaint = new Paint();
     private final float textSizePx;
     private final BorderedText borderedText;

@@ -17,6 +17,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.media.Image;
 import android.media.ImageReader;
+import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -66,10 +67,8 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        Log.d(this.getClass().getSimpleName(), "onCreate...");
         setContentView(R.layout.activity_main);
-
-        // btnCapture = findViewById(R.id.btn_capture);
-        // btnCapture.setOnClickListener(this);
 
         btnDetectStillImage = findViewById(R.id.btn_detect_still_image);
         btnDetectStillImage.setOnClickListener(this);
@@ -187,10 +186,11 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
     }
 
     protected void detectStillImage() {
-        Intent imageIntent = new Intent();
-        imageIntent.setAction(ACTION_PICK);
-        imageIntent.setType("image/*");
-        startActivityForResult(Intent.createChooser(imageIntent, "Pilih Gambar"), IMAGE_INPUT_CODE);
+        Toast.makeText(this, "KLIK BUTTON", Toast.LENGTH_SHORT).show();
+        quitHandler();
+        Intent detectStillIntent = new Intent(getApplicationContext(), DetectFromStillActivity.class);
+        detectStillIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        startActivity(detectStillIntent);
     }
 
     @Override
@@ -204,59 +204,31 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
 
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-
-        if (requestCode == IMAGE_INPUT_CODE) {
-            if (resultCode == RESULT_OK) {
-                InputStream inputStream;
-                try {
-                    if (data != null) {
-                        inputStream = getContentResolver().openInputStream(data.getData());
-                        final Bitmap bitmap = BitmapFactory.decodeStream(inputStream);
-
-                        //Write file
-                        String filename = "bitmap.jpeg";
-                        FileOutputStream stream = this.openFileOutput(filename, Context.MODE_PRIVATE);
-                        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, stream);
-
-                        //Cleanup
-                        stream.close();
-                        bitmap.recycle();
-
-                        Intent detectStillIntent = new Intent(this, DetectFromStillActivity.class);
-                        detectStillIntent.putExtra(DetectFromStillActivity.EXTRA_IMAGE, filename);
-                        startActivityForResult(detectStillIntent, IMAGE_INPUT_CODE);
-
-                    }
-                } catch (IOException e) {
-                    e.printStackTrace();
-                }
-            }
-        }
-    }
-
-
-    @Override
     public synchronized void onResume() {
         super.onResume();
-
+        Log.d(this.getClass().getSimpleName(),"onResume...");
         handlerThread = new HandlerThread("inference");
         handlerThread.start();
         handler = new Handler(handlerThread.getLooper());
+
     }
 
     @Override
     public synchronized void onPause() {
+        quitHandler();
         super.onPause();
+    }
 
-        handlerThread.quitSafely();
-        try {
-            handlerThread.join();
-            handlerThread = null;
-            handler = null;
-        } catch (InterruptedException e) {
-            e.printStackTrace();
+    public void quitHandler() {
+        if (handlerThread != null) {
+            handlerThread.quitSafely();
+            try {
+                handlerThread.join();
+                handlerThread = null;
+                handler = null;
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
         }
     }
 

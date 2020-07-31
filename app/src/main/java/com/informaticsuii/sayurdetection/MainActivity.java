@@ -125,6 +125,7 @@ public class MainActivity extends CameraActivity {
 
     @Override
     protected void processImage() {
+        Log.d("//ProcessImage","processImage() called");
         ++timestamp;
         final long currTimeStamp = timestamp;
         trackingOverlay.postInvalidate();
@@ -150,7 +151,7 @@ public class MainActivity extends CameraActivity {
         runInBackground(new Runnable() {
             @Override
             public void run() {
-                Log.i("//MainActivity", "Run detection on image" + currTimeStamp);
+                Log.d("//ProcessImage", "Run detection on image" + currTimeStamp);
                 final long startTime = SystemClock.uptimeMillis();
                 final List<Classifier.Recognition> results = classifier.recognizeImage(croppedBitmap);
                 lastProcessingTimeMs = SystemClock.uptimeMillis() - startTime;
@@ -188,6 +189,11 @@ public class MainActivity extends CameraActivity {
         });
     }
 
+    @Override
+    public synchronized void onResume() {
+        super.onResume();
+        computingDetection = false;
+    }
 
     // Which detection model to use: by default uses Tensorflow Object Detection API frozen
     // checkpoints.

@@ -269,6 +269,7 @@ public class CameraConnectionFragment extends Fragment {
             mImageReader.close();
             mImageReader = null;
         }
+        stopBackgroundThread();
         super.onPause();
 
 
