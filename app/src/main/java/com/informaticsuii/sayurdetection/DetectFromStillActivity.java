@@ -36,11 +36,9 @@ import static android.content.Intent.ACTION_PICK;
 
 public class DetectFromStillActivity extends AppCompatActivity {
     private static final int IMAGE_INPUT_CODE = 2;
-
-    private static final Size DESIRED_PREVIEW_SIZE = new Size(640, 480);
     // Configuration values for the prepackaged SSD model.
-    private static final int TF_OD_API_INPUT_SIZE = 300;
-    private static final boolean TF_OD_API_IS_QUANTIZED = true;
+    private static final int TF_OD_API_INPUT_SIZE = 320;
+    private static final boolean TF_OD_API_IS_QUANTIZED = false;
     private static final float MINIMUM_CONFIDENCE_TF_OD_API = 0.5f;
     private static final String TF_OD_API_MODEL_FILE = "detect.tflite";
     private static final String TF_OD_API_LABELS_FILE = "file:///android_asset/labelmap.txt";

@@ -76,7 +76,7 @@ public class ObjectDetectionClassifier implements Classifier {
 
         Interpreter.Options options = new Interpreter.Options();
         options.setNumThreads(NUM_THREADS);
-        options.setUseNNAPI(true);
+        options.setUseNNAPI(false);
 
         d.inputSize = inputSize;
         d.tfLiteModel = FileUtil.loadMappedFile(activity, modelFileName);
