@@ -71,6 +71,8 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
         setContentView(R.layout.activity_main);
 
         btnDetectStillImage = findViewById(R.id.btn_detect_still_image);
+        btnCapture = findViewById(R.id.btn_capture);
+        btnCapture.setOnClickListener(this);
         btnDetectStillImage.setOnClickListener(this);
 
         if (hasCameraPersmission()) {
@@ -199,6 +201,13 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
             case R.id.btn_detect_still_image:
                 detectStillImage();
                 break;
+
+            case R.id.btn_capture :
+                if(hasStoragePersmission()){
+
+                }else{
+
+                }
         }
     }
 
