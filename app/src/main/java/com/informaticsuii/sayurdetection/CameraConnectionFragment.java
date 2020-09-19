@@ -1,6 +1,6 @@
 package com.informaticsuii.sayurdetection;
 
-import  android.annotation.SuppressLint;
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
 import android.content.res.Configuration;
@@ -21,11 +21,6 @@ import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.os.Bundle;
-
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.fragment.app.Fragment;
-
 import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
@@ -38,6 +33,10 @@ import android.view.TextureView;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 
 import com.informaticsuii.sayurdetection.customview.AutoFitTextureView;
 
@@ -139,7 +138,7 @@ public class CameraConnectionFragment extends Fragment {
                             if (afState == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED ||
                                     afState == CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED) {
                                 Toast.makeText(getActivity(), "AF Locked", Toast.LENGTH_SHORT).show();
-                                //startStillCaptureRequest();
+                                startStillCaptureRequest();
                             }
                             break;
                     }
@@ -151,7 +150,6 @@ public class CameraConnectionFragment extends Fragment {
                     process(result);
                 }
 
-                ;
             };
 
 
@@ -186,7 +184,6 @@ public class CameraConnectionFragment extends Fragment {
         public void onOpened(@NonNull CameraDevice camera) {
             cameraDevice = camera;
             startPreviewSessionCameraSession();
-            //Toast.makeText(MainActivity.this, "Camera connected", Toast.LENGTH_SHORT).show();
         }
 
         @Override
@@ -257,7 +254,14 @@ public class CameraConnectionFragment extends Fragment {
     }
 
     @Override
+    public void onStop() {
+        super.onStop();
+        Log.d("//Lifecycle", "Fragment onStop..");
+    }
+
+    @Override
     public void onPause() {
+        super.onPause();
         if (previewCaptureSession != null) {
             previewCaptureSession.close();
             previewCaptureSession = null;
@@ -272,8 +276,10 @@ public class CameraConnectionFragment extends Fragment {
             mImageReader = null;
         }
         stopBackgroundThread();
-        super.onPause();
+        Log.d("//Lifecycle", "Fragment onPause..");
+    }
 
+    void captureImage() {
 
     }
 

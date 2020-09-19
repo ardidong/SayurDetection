@@ -1,33 +1,27 @@
 package com.informaticsuii.sayurdetection;
 
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.AppCompatActivity;
-
 import android.content.Intent;
 import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.RectF;
-import android.media.Image;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
-import android.util.Log;
-import android.util.Size;
 import android.widget.ImageView;
 import android.widget.Toast;
 
-import com.bumptech.glide.Glide;
+import androidx.annotation.Nullable;
+import androidx.appcompat.app.AppCompatActivity;
+
 import com.informaticsuii.sayurdetection.classifier.Classifier;
 import com.informaticsuii.sayurdetection.classifier.ObjectDetectionClassifier;
 import com.informaticsuii.sayurdetection.env.ImageUtils;
 import com.informaticsuii.sayurdetection.tracker.MultiBoxTracker;
 import com.theartofdev.edmodo.cropper.CropImage;
 
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.LinkedList;
 import java.util.List;
@@ -37,7 +31,7 @@ import static android.content.Intent.ACTION_PICK;
 public class DetectFromStillActivity extends AppCompatActivity {
     private static final int IMAGE_INPUT_CODE = 2;
     // Configuration values for the prepackaged SSD model.
-    private static final int TF_OD_API_INPUT_SIZE = 320;
+    private static final int TF_OD_API_INPUT_SIZE = 1024;
     private static final boolean TF_OD_API_IS_QUANTIZED = false;
     private static final float MINIMUM_CONFIDENCE_TF_OD_API = 0.5f;
     private static final String TF_OD_API_MODEL_FILE = "detect.tflite";

@@ -8,11 +8,11 @@ import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.text.TextUtils;
-import android.util.Log;
 import android.util.Pair;
 import android.util.TypedValue;
-import com.informaticsuii.sayurdetection.env.BorderedText;
+
 import com.informaticsuii.sayurdetection.classifier.Classifier.Recognition;
+import com.informaticsuii.sayurdetection.env.BorderedText;
 import com.informaticsuii.sayurdetection.env.ImageUtils;
 
 import java.util.LinkedList;

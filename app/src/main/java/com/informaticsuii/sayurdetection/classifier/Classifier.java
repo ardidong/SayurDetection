@@ -3,8 +3,6 @@ package com.informaticsuii.sayurdetection.classifier;
 import android.graphics.Bitmap;
 import android.graphics.RectF;
 
-import androidx.annotation.NonNull;
-
 import java.util.List;
 
 public interface Classifier {

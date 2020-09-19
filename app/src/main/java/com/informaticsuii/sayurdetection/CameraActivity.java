@@ -1,23 +1,11 @@
 package com.informaticsuii.sayurdetection;
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
-import androidx.fragment.app.Fragment;
-import androidx.fragment.app.FragmentManager;
-
 import android.Manifest;
-import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
 import android.media.Image;
 import android.media.ImageReader;
-import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
@@ -29,15 +17,16 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.fragment.app.Fragment;
+import androidx.fragment.app.FragmentManager;
+
 import com.informaticsuii.sayurdetection.env.ImageUtils;
 
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
-
-import static android.content.Intent.ACTION_PICK;
 
 public abstract class CameraActivity extends AppCompatActivity implements ImageReader.OnImageAvailableListener,
         View.OnClickListener {
@@ -202,12 +191,16 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
                 detectStillImage();
                 break;
 
-            case R.id.btn_capture :
-                if(hasStoragePersmission()){
-
+            case R.id.btn_capture:
+                if (hasStoragePersmission()) {
+                    CameraConnectionFragment fragment = (CameraConnectionFragment) getSupportFragmentManager().findFragmentById(R.id.container);
+                    assert fragment != null;
+                    fragment.captureImage();
+                    Toast.makeText(this, "button clicked", Toast.LENGTH_SHORT).show();
                 }else{
-
+                    requestPermission();
                 }
+                break;
         }
     }
 
@@ -215,7 +208,7 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
     @Override
     public synchronized void onResume() {
         super.onResume();
-        Log.d(this.getClass().getSimpleName(),"onResume...");
+        Log.d("//Lifecycle", "onResume..");
         handlerThread = new HandlerThread("inference");
         handlerThread.start();
         handler = new Handler(handlerThread.getLooper());
@@ -224,8 +217,9 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
 
     @Override
     public synchronized void onPause() {
-        quitHandler();
         super.onPause();
+        quitHandler();
+        Log.d("//Lifecycle", "onPause..");
     }
 
     public void quitHandler() {
@@ -263,14 +257,9 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
 
     private boolean hasStoragePersmission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
-                    PackageManager.PERMISSION_GRANTED) {
 
-                storagePermission = true;
-                return true;
-            } else {
-                return false;
-            }
+            return ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) ==
+                    PackageManager.PERMISSION_GRANTED;
         } else {
             return true;
         }

@@ -1,7 +1,6 @@
 package com.informaticsuii.sayurdetection.classifier;
 
 import android.app.Activity;
-import android.content.res.AssetFileDescriptor;
 import android.content.res.AssetManager;
 import android.graphics.Bitmap;
 import android.graphics.RectF;
@@ -11,7 +10,6 @@ import org.tensorflow.lite.Interpreter;
 import org.tensorflow.lite.support.common.FileUtil;
 
 import java.io.BufferedReader;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -32,7 +30,7 @@ public class ObjectDetectionClassifier implements Classifier {
     private static final float IMAGE_MEAN = 128.0f;
     private static final float IMAGE_STD = 128.0f;
     // Number of threads in the java app
-    private static final int NUM_THREADS = 4;
+    private static final int NUM_THREADS = 1;
     private boolean isModelQuantized;
     // Config values.
     private int inputSize;
