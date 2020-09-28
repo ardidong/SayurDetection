@@ -180,7 +180,7 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
         Toast.makeText(this, "KLIK BUTTON", Toast.LENGTH_SHORT).show();
         quitHandler();
         Intent detectStillIntent = new Intent(getApplicationContext(), DetectFromStillActivity.class);
-        detectStillIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
+        detectStillIntent.putExtra(DetectFromStillActivity.EXTRA_ACTION, DetectFromStillActivity.PICK_IMAGE);
         startActivity(detectStillIntent);
     }
 
@@ -195,7 +195,7 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
                 if (hasStoragePersmission()) {
                     CameraConnectionFragment fragment = (CameraConnectionFragment) getSupportFragmentManager().findFragmentById(R.id.container);
                     assert fragment != null;
-                    fragment.captureImage();
+                    fragment.takePicture();
                     Toast.makeText(this, "button clicked", Toast.LENGTH_SHORT).show();
                 }else{
                     requestPermission();

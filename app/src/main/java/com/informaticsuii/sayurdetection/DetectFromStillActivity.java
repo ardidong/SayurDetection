@@ -7,9 +7,12 @@ import android.graphics.Color;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.RectF;
+import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.view.View;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
 
@@ -28,7 +31,7 @@ import java.util.List;
 
 import static android.content.Intent.ACTION_PICK;
 
-public class DetectFromStillActivity extends AppCompatActivity {
+public class DetectFromStillActivity extends AppCompatActivity implements View.OnClickListener {
     private static final int IMAGE_INPUT_CODE = 2;
     // Configuration values for the prepackaged SSD model.
     private static final int TF_OD_API_INPUT_SIZE = 1024;
@@ -36,6 +39,12 @@ public class DetectFromStillActivity extends AppCompatActivity {
     private static final float MINIMUM_CONFIDENCE_TF_OD_API = 0.5f;
     private static final String TF_OD_API_MODEL_FILE = "detect.tflite";
     private static final String TF_OD_API_LABELS_FILE = "file:///android_asset/labelmap.txt";
+
+    public static final String EXTRA_ACTION = "extra_action";
+    public static final String EXTRA_URI = "extra_action";
+    public static final int PICK_IMAGE = 0;
+    public static final int DETECT_CAPTURED = 1;
+
 
     private Bitmap bitmap = null;
     private Bitmap croppedBitmap = null;
@@ -51,6 +60,8 @@ public class DetectFromStillActivity extends AppCompatActivity {
     MultiBoxTracker tracker;
 
     private ImageView ivStillImage;
+    private Button btnPickImage;
+    private Button btnSaveImage;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -58,17 +69,94 @@ public class DetectFromStillActivity extends AppCompatActivity {
         setContentView(R.layout.activity_detect_from_still);
 
         ivStillImage = findViewById(R.id.iv_still_image);
+        btnPickImage = findViewById(R.id.btn_pick_image);
+        btnSaveImage = findViewById(R.id.btn_save_image);
 
+        btnSaveImage.setOnClickListener(this);
+        btnPickImage.setOnClickListener(this);
+
+        int action = getIntent().getIntExtra(EXTRA_ACTION, 0);
+        switch (action) {
+            case PICK_IMAGE:
+                pickImage();
+                break;
+
+            case DETECT_CAPTURED:
+                Uri uri = Uri.parse(getIntent().getExtras().getString("extra_uri"));
+                try {
+                    displayCapturedImage(uri);
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+                break;
+
+        }
+
+
+    }
+
+    private void displayCapturedImage(Uri uri) throws IOException {
+
+        ExifInterface ei = new ExifInterface(uri.getPath());
+        int orientation = ei.getAttributeInt(ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_UNDEFINED);
+
+        Bitmap bmp = MediaStore.Images.Media.getBitmap(this.getContentResolver(), uri);
+
+        switch (orientation) {
+
+            case ExifInterface.ORIENTATION_ROTATE_90:
+                croppedBitmap = rotateImage(bmp, 90);
+                break;
+
+            case ExifInterface.ORIENTATION_ROTATE_180:
+                croppedBitmap = rotateImage(bmp, 180);
+                break;
+
+            case ExifInterface.ORIENTATION_ROTATE_270:
+                croppedBitmap = rotateImage(bmp, 270);
+                break;
+
+            case ExifInterface.ORIENTATION_NORMAL:
+            default:
+                croppedBitmap = bmp;
+        }
+ 
+        prepareDetect();
+    }
+
+    public static Bitmap rotateImage(Bitmap source, float angle) {
+        Matrix matrix = new Matrix();
+        matrix.postRotate(angle);
+        return Bitmap.createBitmap(source, 0, 0, source.getWidth(), source.getHeight(),
+                matrix, true);
+    }
+
+    @Override
+    public void onClick(View view) {
+        switch (view.getId()) {
+            case R.id.btn_pick_image:
+                pickImage();
+                break;
+            case R.id.btn_save_image:
+                saveImage();
+                break;
+        }
+    }
+
+    private void pickImage() {
         Intent imageIntent = new Intent();
         imageIntent.setAction(ACTION_PICK);
         imageIntent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP);
         imageIntent.setType("image/*");
         startActivityForResult(Intent.createChooser(imageIntent, "Pilih Gambar"), IMAGE_INPUT_CODE);
+    }
 
+    private void saveImage() {
+        Toast.makeText(this, "save image", Toast.LENGTH_SHORT).show();
     }
 
     private void prepareDetect() {
-
         try {
             classifier = ObjectDetectionClassifier.create(
                     this,
@@ -78,7 +166,7 @@ public class DetectFromStillActivity extends AppCompatActivity {
                     TF_OD_API_INPUT_SIZE,
                     TF_OD_API_IS_QUANTIZED);
 
-            croppedBitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), croppedUri);
+            //croppedBitmap = MediaStore.Images.Media.getBitmap(this.getContentResolver(), croppedUri);
             bitmap = getResizedBitmap(croppedBitmap, TF_OD_API_INPUT_SIZE, TF_OD_API_INPUT_SIZE);
 
             tracker = new MultiBoxTracker(this);
@@ -97,7 +185,6 @@ public class DetectFromStillActivity extends AppCompatActivity {
         } catch (IOException e) {
             e.printStackTrace();
         }
-
         processImage();
     }
 
@@ -169,7 +256,11 @@ public class DetectFromStillActivity extends AppCompatActivity {
             if (resultCode == RESULT_OK) {
                 if (result != null) {
                     croppedUri = result.getUri();
-                    prepareDetect();
+                    try {
+                        displayCapturedImage(croppedUri);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    }
                 }
             } else {
                 Toast.makeText(this, "Error cropping image", Toast.LENGTH_SHORT).show();

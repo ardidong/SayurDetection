@@ -181,6 +181,7 @@ public class MainActivity extends CameraActivity {
                     }
                 }
                 tracker.trackResults(mappedRecognitions, currTimeStamp);
+
                 computingDetection = false;
 
             }

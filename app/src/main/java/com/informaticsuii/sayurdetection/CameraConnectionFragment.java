@@ -3,6 +3,8 @@ package com.informaticsuii.sayurdetection;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.Context;
+import android.content.ContextWrapper;
+import android.content.Intent;
 import android.content.res.Configuration;
 import android.graphics.ImageFormat;
 import android.graphics.Matrix;
@@ -14,12 +16,14 @@ import android.hardware.camera2.CameraCaptureSession;
 import android.hardware.camera2.CameraCharacteristics;
 import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
+import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
 import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
+import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
@@ -41,8 +45,10 @@ import androidx.fragment.app.Fragment;
 import com.informaticsuii.sayurdetection.customview.AutoFitTextureView;
 
 import java.io.File;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -51,6 +57,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.Date;
 import java.util.List;
+import java.util.UUID;
 
 public class CameraConnectionFragment extends Fragment {
     private static final int REQUEST_CAMERA_PERMISSION_RESULT = 0;
@@ -76,82 +83,21 @@ public class CameraConnectionFragment extends Fragment {
     private static SparseIntArray ORIENTATIONS = new SparseIntArray();
 
     static {
-        ORIENTATIONS.append(Surface.ROTATION_0, 0);
-        ORIENTATIONS.append(Surface.ROTATION_90, 90);
-        ORIENTATIONS.append(Surface.ROTATION_180, 180);
-        ORIENTATIONS.append(Surface.ROTATION_270, 270);
+        ORIENTATIONS.append(Surface.ROTATION_0, 90);
+        ORIENTATIONS.append(Surface.ROTATION_90, 0);
+        ORIENTATIONS.append(Surface.ROTATION_180, 270);
+        ORIENTATIONS.append(Surface.ROTATION_270, 180);
     }
 
-    private class ImageSaver implements Runnable {
-        private final Image mImage;
-
-        public ImageSaver(Image image) {
-            this.mImage = image;
-        }
-
-        @Override
-        public void run() {
-            ByteBuffer byteBuffer = mImage.getPlanes()[0].getBuffer();
-            byte[] bytes = new byte[byteBuffer.remaining()];
-            byteBuffer.get(bytes);
-
-            FileOutputStream fileOutputStream = null;
-            try {
-                fileOutputStream = new FileOutputStream(imageFileName);
-                fileOutputStream.write(bytes);
-            } catch (IOException e) {
-                e.printStackTrace();
-            } finally {
-                mImage.close();
-                if (fileOutputStream != null) {
-                    try {
-                        fileOutputStream.close();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            }
-        }
-    }
 
     private ImageReader mImageReader;
     public ImageReader.OnImageAvailableListener imageListener;
-    private File imageFolder;
-    private String imageFileName;
 
 
     private int totalRotation;
 
     private final ConnectionCallback connectionCallback;
     private CameraCaptureSession previewCaptureSession;
-    private CameraCaptureSession.CaptureCallback previewCaptureCallback =
-            new CameraCaptureSession.CaptureCallback() {
-
-                private void process(CaptureResult captureResult) {
-                    switch (captureState) {
-                        case STATE_PREVIEW:
-                            //do nothing
-                            break;
-                        case STATE_WAIT_LOCK:
-                            captureState = STATE_PREVIEW;
-                            Integer afState = captureResult.get(CaptureResult.CONTROL_AF_STATE);
-                            if (afState == CaptureResult.CONTROL_AF_STATE_FOCUSED_LOCKED ||
-                                    afState == CaptureResult.CONTROL_AF_STATE_NOT_FOCUSED_LOCKED) {
-                                Toast.makeText(getActivity(), "AF Locked", Toast.LENGTH_SHORT).show();
-                                startStillCaptureRequest();
-                            }
-                            break;
-                    }
-                }
-
-                @Override
-                public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
-                    super.onCaptureCompleted(session, request, result);
-                    process(result);
-                }
-
-            };
-
 
     private HandlerThread backgroundHandlerThread;
     private Handler backgroundHandler;
@@ -277,10 +223,6 @@ public class CameraConnectionFragment extends Fragment {
         }
         stopBackgroundThread();
         Log.d("//Lifecycle", "Fragment onPause..");
-    }
-
-    void captureImage() {
-
     }
 
     private void startBackgroundThread() {
@@ -495,56 +437,114 @@ public class CameraConnectionFragment extends Fragment {
         }
     }
 
-    private void startStillCaptureRequest() {
-        try {
-            captureRequestBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
-            captureRequestBuilder.addTarget(mImageReader.getSurface());
-            captureRequestBuilder.set(CaptureRequest.JPEG_ORIENTATION, totalRotation);
 
-            final CameraCaptureSession.CaptureCallback stillCaptureCallback = new CameraCaptureSession.CaptureCallback() {
-                @Override
-                public void onCaptureStarted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, long timestamp, long frameNumber) {
-                    super.onCaptureStarted(session, request, timestamp, frameNumber);
-
-                    try {
-                        createImageFileName();
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    }
-                }
-            };
-            previewCaptureSession.capture(captureRequestBuilder.build(), stillCaptureCallback, null);
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
-
-    }
-
-    private void lockFocus() {
-        captureState = STATE_WAIT_LOCK;
-        captureRequestBuilder.set(CaptureRequest.CONTROL_AF_TRIGGER, CaptureRequest.CONTROL_AF_TRIGGER_START);
-        try {
-            previewCaptureSession.capture(captureRequestBuilder.build(), previewCaptureCallback, backgroundHandler);
-        } catch (CameraAccessException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void createImageFolder() {
-        File imageFile = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-        imageFolder = new File(imageFile, "camera2Image");
-        if (!imageFolder.exists()) {
-            imageFolder.mkdirs();
-        }
-
+    private void detectImageCaptured(Uri uri) {
+        Bundle extras = new Bundle();
+        extras.putInt("extra_action", DetectFromStillActivity.DETECT_CAPTURED);
+        extras.putString("extra_uri", uri.toString());
+        Intent detectStillIntent = new Intent(getActivity(), DetectFromStillActivity.class);
+        detectStillIntent.putExtras(extras);
+        startActivity(detectStillIntent);
     }
 
     private File createImageFileName() throws IOException {
-        String timestamp = new SimpleDateFormat("yyyMMdd_HHmmss").format(new Date());
-        String prepend = "IMAGE_" + timestamp + "_";
-        File imageFile = File.createTempFile(prepend, ".jpg", imageFolder);
-        imageFileName = imageFile.getAbsolutePath();
-        return imageFile;
+        ContextWrapper cw = new ContextWrapper(getContext());
+        File directory = cw.getDir("imageDir", Context.MODE_PRIVATE);
+        return new File(directory, "picture.jpg");
+    }
+
+    public void takePicture() {
+        if (cameraDevice == null)
+            return;
+        CameraManager cameraManager = (CameraManager) getContext().getSystemService(Context.CAMERA_SERVICE);
+        try {
+            CameraCharacteristics cameraCharacteristics = cameraManager.getCameraCharacteristics(cameraDevice.getId());
+            Size[] jpegSizes;
+            jpegSizes = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP)
+                    .getOutputSizes(ImageFormat.JPEG);
+
+            //Capture image with custom size
+            int width = 1024;
+            int height = 1024;
+//            if (jpegSizes != null && jpegSizes.length > 0) {
+//                width = jpegSizes[0].getWidth();
+//                height = jpegSizes[0].getHeight();
+//            }
+            final ImageReader reader = ImageReader.newInstance(width, height, ImageFormat.JPEG, 1);
+            List<Surface> outputSurface = new ArrayList<>(2);
+            outputSurface.add(reader.getSurface());
+            outputSurface.add(new Surface(textureView.getSurfaceTexture()));
+
+            final CaptureRequest.Builder captureBuilder = cameraDevice.createCaptureRequest(CameraDevice.TEMPLATE_STILL_CAPTURE);
+            captureBuilder.addTarget(reader.getSurface());
+            captureBuilder.set(CaptureRequest.CONTROL_MODE, CameraMetadata.CONTROL_MODE_AUTO);
+
+            //check orientation base on device
+            int rotation = getActivity().getWindowManager().getDefaultDisplay().getRotation();
+            captureBuilder.set(CaptureRequest.JPEG_ORIENTATION, ORIENTATIONS.get(rotation));
+
+            final File file = createImageFileName();
+            ImageReader.OnImageAvailableListener readerListener = new ImageReader.OnImageAvailableListener() {
+                @Override
+                public void onImageAvailable(ImageReader imageReader) {
+                    Image image = null;
+                    try {
+                        image = reader.acquireLatestImage();
+                        ByteBuffer buffer = image.getPlanes()[0].getBuffer();
+                        byte[] bytes = new byte[buffer.capacity()];
+                        buffer.get(bytes);
+                        save(bytes);
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } finally {
+                        if (image != null)
+                            image.close();
+                    }
+
+                }
+
+                private void save(byte[] bytes) throws IOException {
+                    OutputStream outputStream = null;
+                    try {
+                        outputStream = new FileOutputStream(file);
+                        outputStream.write(bytes);
+                    } finally {
+                        if (outputStream != null) {
+                            outputStream.close();
+                        }
+                    }
+                }
+            };
+
+            reader.setOnImageAvailableListener(readerListener, backgroundHandler);
+            final CameraCaptureSession.CaptureCallback captureListener = new CameraCaptureSession.CaptureCallback() {
+                @Override
+                public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
+                    super.onCaptureCompleted(session, request, result);
+                    Toast.makeText(getActivity(), "Saved" + file, Toast.LENGTH_SHORT).show();
+                    detectImageCaptured(Uri.fromFile(file));
+                }
+            };
+
+            cameraDevice.createCaptureSession(outputSurface, new CameraCaptureSession.StateCallback() {
+                @Override
+                public void onConfigured(@NonNull CameraCaptureSession cameraCaptureSession) {
+                    try {
+                        cameraCaptureSession.capture(captureBuilder.build(), captureListener, backgroundHandler);
+                    } catch (CameraAccessException e) {
+                        e.printStackTrace();
+                    }
+                }
+
+                @Override
+                public void onConfigureFailed(@NonNull CameraCaptureSession cameraCaptureSession) {
+
+                }
+            }, backgroundHandler);
+
+        } catch (CameraAccessException | IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private static class CompareSizesByArea implements Comparator<Size> {
