@@ -37,11 +37,11 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
     protected int previewHeight = 0;
 
     private boolean cameraPermission = false;
-    private boolean storagePermission = false;
-    private boolean debug = false;
+    private final boolean storagePermission = false;
+    private final boolean debug = false;
     private boolean isProcessingFrame = false;
 
-    private byte[][] yuvBytes = new byte[3][];
+    private final byte[][] yuvBytes = new byte[3][];
     private int[] rgbBytes = null;
     private int yRowStride;
 
@@ -177,7 +177,6 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
     }
 
     protected void detectStillImage() {
-        Toast.makeText(this, "KLIK BUTTON", Toast.LENGTH_SHORT).show();
         quitHandler();
         Intent detectStillIntent = new Intent(getApplicationContext(), DetectFromStillActivity.class);
         detectStillIntent.putExtra(DetectFromStillActivity.EXTRA_ACTION, DetectFromStillActivity.PICK_IMAGE);
@@ -196,7 +195,6 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
                     CameraConnectionFragment fragment = (CameraConnectionFragment) getSupportFragmentManager().findFragmentById(R.id.container);
                     assert fragment != null;
                     fragment.takePicture();
-                    Toast.makeText(this, "button clicked", Toast.LENGTH_SHORT).show();
                 }else{
                     requestPermission();
                 }

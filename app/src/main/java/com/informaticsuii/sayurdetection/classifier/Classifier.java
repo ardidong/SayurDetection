@@ -19,9 +19,9 @@ public interface Classifier {
     void setUseNNAPI(boolean isChecked);
 
     class Recognition {
-        private String id;
-        private String title;
-        private Float confidence;
+        private final String id;
+        private final String title;
+        private final Float confidence;
         private RectF location;
 
 

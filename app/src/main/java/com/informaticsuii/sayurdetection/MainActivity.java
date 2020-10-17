@@ -79,7 +79,6 @@ public class MainActivity extends CameraActivity {
                     TF_OD_API_INPUT_SIZE,
                     TF_OD_API_IS_QUANTIZED);
             cropSize = TF_OD_API_INPUT_SIZE;
-            Toast.makeText(this, "Classifier berhasil diinisiasi", Toast.LENGTH_SHORT).show();
         } catch (IOException e) {
             e.printStackTrace();
             Toast.makeText(this, "Classifier gagal diinisiasi", Toast.LENGTH_SHORT).show();
@@ -162,11 +161,7 @@ public class MainActivity extends CameraActivity {
                 paint.setStrokeWidth(2.0f);
 
                 float minimumConfidence = MINIMUM_CONFIDENCE_TF_OD_API;
-                switch (MODE){
-                    case TF_OD_API:
-                        minimumConfidence = MINIMUM_CONFIDENCE_TF_OD_API;
-                        break;
-                }
+
 
                 final List<Classifier.Recognition> mappedRecognitions = new LinkedList<>();
 

@@ -18,14 +18,12 @@ import android.hardware.camera2.CameraDevice;
 import android.hardware.camera2.CameraManager;
 import android.hardware.camera2.CameraMetadata;
 import android.hardware.camera2.CaptureRequest;
-import android.hardware.camera2.CaptureResult;
 import android.hardware.camera2.TotalCaptureResult;
 import android.hardware.camera2.params.StreamConfigurationMap;
 import android.media.Image;
 import android.media.ImageReader;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.util.Log;
@@ -45,25 +43,21 @@ import androidx.fragment.app.Fragment;
 import com.informaticsuii.sayurdetection.customview.AutoFitTextureView;
 
 import java.io.File;
-import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.ByteBuffer;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.Date;
 import java.util.List;
-import java.util.UUID;
 
 public class CameraConnectionFragment extends Fragment {
     private static final int REQUEST_CAMERA_PERMISSION_RESULT = 0;
     private static final int STATE_PREVIEW = 0;
     private static final int STATE_WAIT_LOCK = 1;
-    private int captureState = STATE_PREVIEW;
+    private final int captureState = STATE_PREVIEW;
     private static final int MINIMUM_PREVIEW_SIZE = 320;
     private static final int MAX_PREVIEW_WIDTH = 1920;
     private static final int MAX_PREVIEW_HEIGHT = 1080;
@@ -73,14 +67,14 @@ public class CameraConnectionFragment extends Fragment {
     private String cameraId;
     private Size previewSize;
     private Size imageSize;
-    private Size inputSize;
+    private final Size inputSize;
     private CaptureRequest.Builder captureRequestBuilder;
 
     private AutoFitTextureView textureView;
     private final int layout;
 
 
-    private static SparseIntArray ORIENTATIONS = new SparseIntArray();
+    private static final SparseIntArray ORIENTATIONS = new SparseIntArray();
 
     static {
         ORIENTATIONS.append(Surface.ROTATION_0, 90);
@@ -101,7 +95,7 @@ public class CameraConnectionFragment extends Fragment {
 
     private HandlerThread backgroundHandlerThread;
     private Handler backgroundHandler;
-    private TextureView.SurfaceTextureListener surfaceTextureListener = new TextureView.SurfaceTextureListener() {
+    private final TextureView.SurfaceTextureListener surfaceTextureListener = new TextureView.SurfaceTextureListener() {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
             setupCamera(width, height);
@@ -125,7 +119,7 @@ public class CameraConnectionFragment extends Fragment {
         }
     };
 
-    private CameraDevice.StateCallback cameraDeviceStateCallback = new CameraDevice.StateCallback() {
+    private final CameraDevice.StateCallback cameraDeviceStateCallback = new CameraDevice.StateCallback() {
         @Override
         public void onOpened(@NonNull CameraDevice camera) {
             cameraDevice = camera;
@@ -521,7 +515,6 @@ public class CameraConnectionFragment extends Fragment {
                 @Override
                 public void onCaptureCompleted(@NonNull CameraCaptureSession session, @NonNull CaptureRequest request, @NonNull TotalCaptureResult result) {
                     super.onCaptureCompleted(session, request, result);
-                    Toast.makeText(getActivity(), "Saved" + file, Toast.LENGTH_SHORT).show();
                     detectImageCaptured(Uri.fromFile(file));
                 }
             };

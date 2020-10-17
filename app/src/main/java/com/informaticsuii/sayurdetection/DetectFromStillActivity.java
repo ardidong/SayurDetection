@@ -10,6 +10,7 @@ import android.graphics.RectF;
 import android.media.ExifInterface;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.provider.MediaStore;
 import android.view.View;
 import android.widget.Button;
@@ -25,7 +26,11 @@ import com.informaticsuii.sayurdetection.env.ImageUtils;
 import com.informaticsuii.sayurdetection.tracker.MultiBoxTracker;
 import com.theartofdev.edmodo.cropper.CropImage;
 
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -48,7 +53,7 @@ public class DetectFromStillActivity extends AppCompatActivity implements View.O
 
     private Bitmap bitmap = null;
     private Bitmap croppedBitmap = null;
-    private Bitmap cropCopyBitmap = null;
+    private Bitmap finalBitmap = null;
 
     private Matrix frameToCropTransform;
     private Matrix cropToFrameTransform;
@@ -56,8 +61,9 @@ public class DetectFromStillActivity extends AppCompatActivity implements View.O
     private Uri imageUri;
     private Uri croppedUri;
     private Classifier classifier;
-
     MultiBoxTracker tracker;
+
+    private String currentPhotoPath;
 
     private ImageView ivStillImage;
     private Button btnPickImage;
@@ -72,6 +78,7 @@ public class DetectFromStillActivity extends AppCompatActivity implements View.O
         btnPickImage = findViewById(R.id.btn_pick_image);
         btnSaveImage = findViewById(R.id.btn_save_image);
 
+        btnSaveImage.setEnabled(false);
         btnSaveImage.setOnClickListener(this);
         btnPickImage.setOnClickListener(this);
 
@@ -121,7 +128,7 @@ public class DetectFromStillActivity extends AppCompatActivity implements View.O
             default:
                 croppedBitmap = bmp;
         }
- 
+
         prepareDetect();
     }
 
@@ -134,14 +141,16 @@ public class DetectFromStillActivity extends AppCompatActivity implements View.O
 
     @Override
     public void onClick(View view) {
-        switch (view.getId()) {
-            case R.id.btn_pick_image:
-                pickImage();
-                break;
-            case R.id.btn_save_image:
+        if (view.getId() == R.id.btn_pick_image) {
+            pickImage();
+        } else if (view.getId() == R.id.btn_save_image) {
+            try {
                 saveImage();
-                break;
+            } catch (IOException e) {
+                Toast.makeText(this, "Cannot save image!", Toast.LENGTH_SHORT).show();
+            }
         }
+
     }
 
     private void pickImage() {
@@ -152,8 +161,42 @@ public class DetectFromStillActivity extends AppCompatActivity implements View.O
         startActivityForResult(Intent.createChooser(imageIntent, "Pilih Gambar"), IMAGE_INPUT_CODE);
     }
 
-    private void saveImage() {
-        Toast.makeText(this, "save image", Toast.LENGTH_SHORT).show();
+    private File createImageFile() throws IOException {
+        File storageDir = Environment.getExternalStoragePublicDirectory(
+                Environment.DIRECTORY_PICTURES + File.separator + "SayurDetection/");
+        if (!storageDir.exists()) {
+            storageDir.mkdirs();
+        }
+
+        String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+        String imageFileName = "JPEG_" + timeStamp + "_";
+
+        File image = File.createTempFile(
+                imageFileName,  /* prefix */
+                ".jpg",         /* suffix */
+                storageDir      /* directory */
+        );
+
+        currentPhotoPath = image.getAbsolutePath();
+        return image;
+    }
+
+    private void galleryAddPic() {
+        Intent mediaScanIntent = new Intent(Intent.ACTION_MEDIA_SCANNER_SCAN_FILE);
+        File f = new File(currentPhotoPath);
+        Uri contentUri = Uri.fromFile(f);
+        mediaScanIntent.setData(contentUri);
+        this.sendBroadcast(mediaScanIntent);
+    }
+
+    private void saveImage() throws IOException {
+        File file = createImageFile();
+        FileOutputStream out = new FileOutputStream(file);
+        finalBitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
+        out.flush();
+        out.close();
+        galleryAddPic();
+
     }
 
     private void prepareDetect() {
@@ -172,7 +215,7 @@ public class DetectFromStillActivity extends AppCompatActivity implements View.O
             tracker = new MultiBoxTracker(this);
             tracker.setFrameConfiguration(croppedBitmap.getWidth(), croppedBitmap.getHeight(), 0);
 
-            cropCopyBitmap = croppedBitmap.copy(croppedBitmap.getConfig(), true);
+            finalBitmap = croppedBitmap.copy(croppedBitmap.getConfig(), true);
             int cropSize = TF_OD_API_INPUT_SIZE;
             frameToCropTransform = ImageUtils.getTransformationMatrix(
                     croppedBitmap.getWidth(), croppedBitmap.getHeight(),
@@ -194,7 +237,7 @@ public class DetectFromStillActivity extends AppCompatActivity implements View.O
         canvas.drawBitmap(croppedBitmap, frameToCropTransform, null);
 
         final List<Classifier.Recognition> results = classifier.recognizeImage(bitmap);
-        final Canvas mCanvas = new Canvas(cropCopyBitmap);
+        final Canvas mCanvas = new Canvas(finalBitmap);
         final Paint paint = new Paint();
         paint.setColor(Color.RED);
         paint.setStyle(Paint.Style.STROKE);
@@ -215,7 +258,14 @@ public class DetectFromStillActivity extends AppCompatActivity implements View.O
         tracker.trackResults(mappedRecognitions, 0);
         tracker.draw(mCanvas);
 
-        ivStillImage.setImageBitmap(cropCopyBitmap);
+        showImage();
+    }
+
+    private void showImage() {
+        if (finalBitmap != null) {
+            ivStillImage.setImageBitmap(finalBitmap);
+            btnSaveImage.setEnabled(true);
+        }
     }
 
     // resizes bitmap to given dimensions
