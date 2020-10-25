@@ -1,5 +1,7 @@
 package com.informaticsuii.sayurdetection;
 
+import android.content.ContentResolver;
+import android.content.ContentValues;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -9,9 +11,11 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.media.ExifInterface;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.provider.MediaStore;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -29,6 +33,7 @@ import com.theartofdev.edmodo.cropper.CropImage;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.LinkedList;
@@ -147,7 +152,8 @@ public class DetectFromStillActivity extends AppCompatActivity implements View.O
             try {
                 saveImage();
             } catch (IOException e) {
-                Toast.makeText(this, "Cannot save image!", Toast.LENGTH_SHORT).show();
+                e.printStackTrace();
+                Toast.makeText(this, "Cannot save image", Toast.LENGTH_SHORT).show();
             }
         }
 
@@ -190,12 +196,30 @@ public class DetectFromStillActivity extends AppCompatActivity implements View.O
     }
 
     private void saveImage() throws IOException {
-        File file = createImageFile();
-        FileOutputStream out = new FileOutputStream(file);
-        finalBitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
-        out.flush();
-        out.close();
-        galleryAddPic();
+        OutputStream out;
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+            String name = "JPEG_" + timeStamp + "_";
+
+            ContentResolver resolver = getApplicationContext().getContentResolver();
+            ContentValues contentValues = new ContentValues();
+            contentValues.put(MediaStore.MediaColumns.DISPLAY_NAME, name);
+            contentValues.put(MediaStore.MediaColumns.MIME_TYPE, "image/jpg");
+            contentValues.put(MediaStore.MediaColumns.RELATIVE_PATH, "DCIM/" + "SayurDetection");
+            Uri imageUri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, contentValues);
+            out = resolver.openOutputStream(imageUri);
+            finalBitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
+            out.flush();
+            out.close();
+        } else {
+            File file = createImageFile();
+            out = new FileOutputStream(file);
+            finalBitmap.compress(Bitmap.CompressFormat.JPEG, 100, out);
+            out.flush();
+            out.close();
+            galleryAddPic();
+        }
+        Toast.makeText(this, "Image Saved!", Toast.LENGTH_SHORT).show();
 
     }
 

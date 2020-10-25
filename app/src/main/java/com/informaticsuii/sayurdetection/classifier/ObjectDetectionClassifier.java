@@ -30,7 +30,7 @@ public class ObjectDetectionClassifier implements Classifier {
     private static final float IMAGE_MEAN = 128.0f;
     private static final float IMAGE_STD = 128.0f;
     // Number of threads in the java app
-    private static final int NUM_THREADS = 1;
+    private static final int NUM_THREADS = 2;
     private boolean isModelQuantized;
     // Config values.
     private int inputSize;

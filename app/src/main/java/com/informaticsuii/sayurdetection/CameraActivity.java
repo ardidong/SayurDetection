@@ -32,7 +32,6 @@ public abstract class CameraActivity extends AppCompatActivity implements ImageR
         View.OnClickListener {
     private static final int REQUEST_CAMERA_PERMISSION_RESULT = 0;
     private static final int REQUEST_WRITE_EXTERNAL_STORAGE_PERMISSION_RESULT = 1;
-    private static final int IMAGE_INPUT_CODE = 2;
     protected int previewWidth = 0;
     protected int previewHeight = 0;
 

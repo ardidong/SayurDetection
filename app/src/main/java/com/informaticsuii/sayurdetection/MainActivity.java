@@ -26,7 +26,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class MainActivity extends CameraActivity {
-    private static final Size DESIRED_PREVIEW_SIZE = new Size(640, 320);
+    private static final Size DESIRED_PREVIEW_SIZE = new Size(1024, 1024);
     // Configuration values for the prepackaged SSD model.
     private static final int TF_OD_API_INPUT_SIZE = 1024;
     private static final boolean TF_OD_API_IS_QUANTIZED = false;
@@ -110,7 +110,7 @@ public class MainActivity extends CameraActivity {
                     @Override
                     public void drawCallback(Canvas canvas) {
                         tracker.draw(canvas);
-                        if(isDebug()){
+                        if (isDebug()) {
                             tracker.drawDebug(canvas);
                         }
                     }
@@ -122,18 +122,17 @@ public class MainActivity extends CameraActivity {
 
     @Override
     protected void processImage() {
-        Log.d("//ProcessImage","processImage() called");
+        Log.d("//ProcessImage", "processImage() called");
         ++timestamp;
         final long currTimeStamp = timestamp;
-        trackingOverlay.postInvalidate();
 
-        if(computingDetection){
+        if (computingDetection) {
             readyForNextImage();
             return;
         }
         computingDetection = true;
 
-        rgbFrameBitmap.setPixels(getRgbBytes(), 0, previewWidth,0,0,previewWidth, previewHeight);
+        rgbFrameBitmap.setPixels(getRgbBytes(), 0, previewWidth, 0, 0, previewWidth, previewHeight);
 
         readyForNextImage();
 
@@ -141,7 +140,7 @@ public class MainActivity extends CameraActivity {
         canvas.drawBitmap(rgbFrameBitmap, frameToCropTransform, null);
 
         //for examining the actual TF input
-        if(SAVE_PREVIEW_BITMAP){
+        if (SAVE_PREVIEW_BITMAP) {
             ImageUtils.saveBitmap(croppedBitmap);
         }
 
@@ -165,10 +164,10 @@ public class MainActivity extends CameraActivity {
 
                 final List<Classifier.Recognition> mappedRecognitions = new LinkedList<>();
 
-                for (final Classifier.Recognition result : results){
+                for (final Classifier.Recognition result : results) {
                     final RectF location = result.getLocation();
-                    if(location != null && result.getConfidence() >= minimumConfidence){
-                        canvas.drawRect(location,paint);
+                    if (location != null && result.getConfidence() >= minimumConfidence) {
+                        canvas.drawRect(location, paint);
 
                         cropToFrameTransform.mapRect(location);
                         result.setLocation(location);
@@ -176,6 +175,7 @@ public class MainActivity extends CameraActivity {
                     }
                 }
                 tracker.trackResults(mappedRecognitions, currTimeStamp);
+                trackingOverlay.postInvalidate();
 
                 computingDetection = false;
 

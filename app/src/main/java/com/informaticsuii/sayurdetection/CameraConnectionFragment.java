@@ -26,6 +26,7 @@ import android.net.Uri;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.text.TextUtils;
 import android.util.Log;
 import android.util.Size;
 import android.util.SparseIntArray;
@@ -54,19 +55,13 @@ import java.util.Comparator;
 import java.util.List;
 
 public class CameraConnectionFragment extends Fragment {
-    private static final int REQUEST_CAMERA_PERMISSION_RESULT = 0;
-    private static final int STATE_PREVIEW = 0;
-    private static final int STATE_WAIT_LOCK = 1;
-    private final int captureState = STATE_PREVIEW;
+
     private static final int MINIMUM_PREVIEW_SIZE = 320;
-    private static final int MAX_PREVIEW_WIDTH = 1920;
-    private static final int MAX_PREVIEW_HEIGHT = 1080;
 
 
     private CameraDevice cameraDevice;
     private String cameraId;
     private Size previewSize;
-    private Size imageSize;
     private final Size inputSize;
     private CaptureRequest.Builder captureRequestBuilder;
 
@@ -267,40 +262,8 @@ public class CameraConnectionFragment extends Fragment {
                 int deviceOrientation = activity.getWindowManager().getDefaultDisplay().getRotation();
                 totalRotation = sensorToDeviceRotation(cameraCharacteristics, deviceOrientation);
 
-                Point displaySize = new Point();
-                activity.getWindowManager().getDefaultDisplay().getSize(displaySize);
-
-                boolean swapRotation = totalRotation == 90 || totalRotation == 270;
-                int rotatedWidth = width;
-                int rotatedHeight = height;
-
-                if (swapRotation) {
-                    rotatedWidth = height;
-                    rotatedHeight = width;
-                }
-
-                int maxPreviewWidth = displaySize.x;
-                int maxPreviewHeight = displaySize.y;
-
-                if (maxPreviewWidth > MAX_PREVIEW_WIDTH) {
-                    maxPreviewWidth = MAX_PREVIEW_WIDTH;
-                }
-
-                if (maxPreviewHeight > MAX_PREVIEW_HEIGHT) {
-                    maxPreviewHeight = MAX_PREVIEW_HEIGHT;
-                }
-
-                //SIze
-                Size largest = Collections.max(
-                        Arrays.asList(map.getOutputSizes(ImageFormat.JPEG)),
-                        new CompareSizesByArea());
-
-                imageSize = chooseOptimalSize(map.getOutputSizes(ImageFormat.JPEG),
-                        rotatedWidth, rotatedHeight, maxPreviewWidth, maxPreviewHeight, largest);
-
-
                 previewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class),
-                        inputSize.getWidth(), inputSize.getHeight(), maxPreviewWidth, maxPreviewHeight, largest);
+                        inputSize.getWidth(), inputSize.getHeight());
 
                 final int orientation = getResources().getConfiguration().orientation;
                 if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
@@ -400,33 +363,43 @@ public class CameraConnectionFragment extends Fragment {
         }
     }
 
-    private static Size chooseOptimalSize(Size[] choices, int width, int height, int maxWidth, int maxHeight, Size aspectRatio) {
+    protected static Size chooseOptimalSize(final Size[] choices, final int width, final int height) {
+        final int minSize = Math.max(Math.min(width, height), MINIMUM_PREVIEW_SIZE);
+        final Size desiredSize = new Size(width, height);
+
         // Collect the supported resolutions that are at least as big as the preview Surface
-        List<Size> bigEnough = new ArrayList<>();
-        // Collect the supported resolutions that are smaller than the preview Surface
-        List<Size> notBigEnough = new ArrayList<>();
-        int w = aspectRatio.getWidth();
-        int h = aspectRatio.getHeight();
-        for (Size option : choices) {
-            if (option.getWidth() <= maxWidth && option.getHeight() <= maxHeight &&
-                    option.getHeight() == option.getWidth() * h / w) {
-                if (option.getWidth() >= width &&
-                        option.getHeight() >= height) {
-                    bigEnough.add(option);
-                } else {
-                    notBigEnough.add(option);
-                }
+        boolean exactSizeFound = false;
+        final List<Size> bigEnough = new ArrayList<Size>();
+        final List<Size> tooSmall = new ArrayList<Size>();
+        for (final Size option : choices) {
+            if (option.equals(desiredSize)) {
+                // Set the size but don't return yet so that remaining sizes will still be logged.
+                exactSizeFound = true;
+            }
+
+            if (option.getHeight() >= minSize && option.getWidth() >= minSize) {
+                bigEnough.add(option);
+            } else {
+                tooSmall.add(option);
             }
         }
 
-        // Pick the smallest of those big enough. If there is no one big enough, pick the
-        // largest of those not big enough.
+//        LOGGER.i("Desired size: " + desiredSize + ", min size: " + minSize + "x" + minSize);
+//        LOGGER.i("Valid preview sizes: [" + TextUtils.join(", ", bigEnough) + "]");
+//        LOGGER.i("Rejected preview sizes: [" + TextUtils.join(", ", tooSmall) + "]");
+
+        if (exactSizeFound) {
+            //LOGGER.i("Exact size match found.");
+            return desiredSize;
+        }
+
+        // Pick the smallest of those, assuming we found any
         if (bigEnough.size() > 0) {
-            return Collections.min(bigEnough, new CompareSizesByArea());
-        } else if (notBigEnough.size() > 0) {
-            return Collections.max(notBigEnough, new CompareSizesByArea());
+            final Size chosenSize = Collections.min(bigEnough, new CompareSizesByArea());
+           // LOGGER.i("Chosen size: " + chosenSize.getWidth() + "x" + chosenSize.getHeight());
+            return chosenSize;
         } else {
-            Log.e("Camera2", "Couldn't find any suitable preview size");
+            //LOGGER.e("Couldn't find any suitable preview size");
             return choices[0];
         }
     }
