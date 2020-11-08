@@ -94,8 +94,8 @@ public class CameraConnectionFragment extends Fragment {
         @Override
         public void onSurfaceTextureAvailable(SurfaceTexture surfaceTexture, int width, int height) {
             setupCamera(width, height);
-            connectCamera();
             configureTransform(width, height);
+            connectCamera();
         }
 
         @Override
@@ -260,7 +260,7 @@ public class CameraConnectionFragment extends Fragment {
                 StreamConfigurationMap map = cameraCharacteristics.get(CameraCharacteristics.SCALER_STREAM_CONFIGURATION_MAP);
 
                 int deviceOrientation = activity.getWindowManager().getDefaultDisplay().getRotation();
-                totalRotation = sensorToDeviceRotation(cameraCharacteristics, deviceOrientation);
+                totalRotation = cameraCharacteristics.get(CameraCharacteristics.SENSOR_ORIENTATION);
 
                 previewSize = chooseOptimalSize(map.getOutputSizes(SurfaceTexture.class),
                         inputSize.getWidth(), inputSize.getHeight());
@@ -285,12 +285,12 @@ public class CameraConnectionFragment extends Fragment {
         if (null == textureView || null == previewSize) {
             return;
         }
-        int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
-        Matrix matrix = new Matrix();
-        RectF viewRect = new RectF(0, 0, viewWidth, viewHeight);
-        RectF bufferRect = new RectF(0, 0, previewSize.getHeight(), previewSize.getWidth());
-        float centerX = viewRect.centerX();
-        float centerY = viewRect.centerY();
+        final int rotation = activity.getWindowManager().getDefaultDisplay().getRotation();
+        final Matrix matrix = new Matrix();
+        final RectF viewRect = new RectF(0, 0, viewWidth, viewHeight);
+        final RectF bufferRect = new RectF(0, 0, previewSize.getHeight(), previewSize.getWidth());
+        final float centerX = viewRect.centerX();
+        final float centerY = viewRect.centerY();
         if (Surface.ROTATION_90 == rotation || Surface.ROTATION_270 == rotation) {
             bufferRect.offset(centerX - bufferRect.centerX(), centerY - bufferRect.centerY());
             matrix.setRectToRect(viewRect, bufferRect, Matrix.ScaleToFit.FILL);
@@ -326,7 +326,7 @@ public class CameraConnectionFragment extends Fragment {
             captureRequestBuilder.addTarget(previewSurface);
 
             mImageReader = ImageReader.newInstance(previewSize.getWidth(), previewSize.getHeight(),
-                    ImageFormat.YUV_420_888, /*maxImages*/2);
+                    ImageFormat.YUV_420_888, 2);
             mImageReader.setOnImageAvailableListener(
                     imageListener, backgroundHandler);
             captureRequestBuilder.addTarget(mImageReader.getSurface());

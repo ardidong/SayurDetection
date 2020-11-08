@@ -44,7 +44,7 @@ import static android.content.Intent.ACTION_PICK;
 public class DetectFromStillActivity extends AppCompatActivity implements View.OnClickListener {
     private static final int IMAGE_INPUT_CODE = 2;
     // Configuration values for the prepackaged SSD model.
-    private static final int TF_OD_API_INPUT_SIZE = 1024;
+    private static final int TF_OD_API_INPUT_SIZE = 320;
     private static final boolean TF_OD_API_IS_QUANTIZED = false;
     private static final float MINIMUM_CONFIDENCE_TF_OD_API = 0.5f;
     private static final String TF_OD_API_MODEL_FILE = "detect.tflite";

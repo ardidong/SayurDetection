@@ -26,9 +26,9 @@ import java.util.LinkedList;
 import java.util.List;
 
 public class MainActivity extends CameraActivity {
-    private static final Size DESIRED_PREVIEW_SIZE = new Size(1024, 1024);
+    private static final Size DESIRED_PREVIEW_SIZE = new Size(640, 480);
     // Configuration values for the prepackaged SSD model.
-    private static final int TF_OD_API_INPUT_SIZE = 1024;
+    private static final int TF_OD_API_INPUT_SIZE = 320;
     private static final boolean TF_OD_API_IS_QUANTIZED = false;
     private static final String TF_OD_API_MODEL_FILE = "detect.tflite";
     private static final String TF_OD_API_LABELS_FILE = "file:///android_asset/labelmap.txt";
@@ -87,7 +87,7 @@ public class MainActivity extends CameraActivity {
 
         previewHeight = size.getHeight();
         previewWidth = size.getWidth();
-        final int screenOrientation = getWindowManager().getDefaultDisplay().getRotation();
+        final int screenOrientation = getScreenOrientation();
         sensorOrientation = rotation - screenOrientation;
 
         Log.i("//DebugMainActivity", String.format("Camera orientation relative to screen canvas: %d", sensorOrientation));
